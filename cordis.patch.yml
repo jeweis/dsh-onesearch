@@ -1,0 +1,27 @@
+# dsh-onesearch — 「一个搜索」
+#
+# 一个搜索接缝 + 有序引擎链：
+#   - engines 数组的顺序就是优先级，前一个失败/0 条自动顺延下一个
+#   - 每个引擎自带 enabled 开关（设置页可拖动排序、单独开关）
+#   - 接管 DSH 默认搜索的方式：把 web 条目的 searchProvider 设成 onesearch（设置页的开关会做这件事）
+#
+# 引擎：yuanbao（腾讯元宝 WSA，需 key）、doubao（火山引擎联网搜索，需 key）、
+#       bing-html（免密钥兜底）
+# 工具：不新增任何工具——只接管内置 web_search，过滤走 site:/after:/before: 操作符
+- insert:
+    - id: onesearch
+      name: dsh-onesearch
+      config:
+        engines:
+          - id: yuanbao
+            enabled: true
+          - id: doubao
+            enabled: true
+          - id: bing-html
+            enabled: true
+        yuanbaoApiKey: ""
+        yuanbaoApiKeyEnv: WSA_API_KEY
+        doubaoApiKey: ""
+        doubaoApiKeyEnv: DOUBAO_API_KEY
+        defaultCount: 10
+        searchTimeoutMs: 20000

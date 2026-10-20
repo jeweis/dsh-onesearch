@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Yuanbao Search">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f6feb"/>
+      <stop offset="1" stop-color="#0ea5a4"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+  <circle cx="28" cy="28" r="12.5" fill="none" stroke="#ffffff" stroke-width="4.5"/>
+  <line x1="37.5" y1="37.5" x2="50" y2="50" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M22 27.5h12M28 21.5v12" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+</svg>
