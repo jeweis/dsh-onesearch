@@ -103,12 +103,21 @@ export function apply(ctx, config) {
       // Generic operators (`site:`, `-site:`, `after:`, `before:`) are parsed
       // here, so the tool contract stays a single plain query string.
       const parsed = parseQuery(request.query)
-      const result = await runChain(engines(), parsed.text || String(request.query ?? ''), {
-        maxResults: request.maxResults,
-        signal,
-        filters: parsed,
-        raw: String(request.query ?? ''),
-      })
+      let result
+      try {
+        result = await runChain(engines(), parsed.text || String(request.query ?? ''), {
+          maxResults: request.maxResults,
+          signal,
+          filters: parsed,
+          raw: String(request.query ?? ''),
+        })
+      } catch (error) {
+        // Surface the chain's per-engine reasons on the settings page instead of
+        // only in the tool result, so a failing chain is diagnosable from the UI.
+        stats.lastEngine = ''
+        stats.lastError = String(error?.message ?? error)
+        throw error
+      }
       stats.lastEngine = result.engine
       stats.lastError = ''
       if (result.tried.length > 1) {

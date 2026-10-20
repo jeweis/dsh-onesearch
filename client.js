@@ -262,7 +262,7 @@ window.__ModuleLoader__.load({
               const body = await res.json()
               if (!body.ok) throw new Error(body.error || 'write failed')
               setState(body.state)
-              setTakeoverNote('已写入 web.searchProvider，重载该插件后生效')
+              setTakeoverNote(body.restartRequired ? '已写入 web.searchProvider，重载该插件后生效' : '已生效')
               setError(null)
             } catch (cause) {
               setError(String(cause.message || cause))

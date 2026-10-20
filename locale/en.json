@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "One Search",
-    "description": "One search seam over ordered engines: per-engine switches, drag-order priority, and automatic fallback to the next engine. Takes over the default web search."
+    "description": "Replaces the built-in web search with an ordered chain of engines: per-engine switches, drag-order priority, and automatic fallback to the next engine."
   }
 }

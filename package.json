@@ -1,7 +1,7 @@
 {
   "name": "dsh-onesearch",
   "version": "0.1.0",
-  "description": "一个搜索 (dsh-onesearch) for DeepSeek Harness: one search seam over ordered engines — per-engine switches, drag-order priority, and automatic fallback to the next engine when one fails. Takes over the default web search; exposes no vendor-named tools.",
+  "description": "DeepSeek Harness 搜索插件：把内置网络搜索换成一条可排序的搜索引擎链，每个引擎单独开关、拖动决定优先级，失败自动顺延下一个。",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -15,11 +15,13 @@
     "index.js",
     "client.js",
     "lib",
+    "docs",
     "locale/*.json",
     "icon.svg",
     "cordis.patch.yml",
     "README.md"
   ],
+  "icon": "./icon.svg",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -40,15 +42,26 @@
     "search-provider"
   ],
   "engines": {
-    "node": ">=20"
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": "^0.2.1-rc.2"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check index.js && node --check client.js && node --check lib/bridge.js && node --check lib/query.js && node --check lib/engines/index.js && node --check lib/engines/yuanbao.js && node --check lib/engines/doubao.js && node --check lib/engines/bing-html.js"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.5"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jeweis/dsh-onesearch.git"
+  },
+  "homepage": "https://github.com/jeweis/dsh-onesearch#readme",
+  "bugs": {
+    "url": "https://github.com/jeweis/dsh-onesearch/issues"
   }
 }

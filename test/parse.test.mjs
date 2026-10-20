@@ -2,19 +2,6 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { decodePages, normalizeHit } from '../lib/engines/yuanbao.js'
 
-const LIST_FIXTURE = `
-<ul class="news-list">
-  <li id="sogou_vr_11002601_box_0" d="x">
-    <h3><a target="_blank" href="/link?url=abc&amp;type=2" id="sogou_vr_11002601_title_0"><em><!--red_beg-->大模型<!--red_end--></em>训练有多卷? &amp; 算力</a></h3>
-    <p class="txt-info" id="sogou_vr_11002601_summary_0">摘要&ldquo;内容&rdquo;...</p>
-    <div class="s-p"><span class="all-time-y2">钛媒体</span><span class="s2"><script>document.write(timeConvert('1697450390'))</script></span></div>
-  </li>
-  <li id="sogou_vr_11002601_box_1" d="y">
-    <h3><a href="/link?url=def"><em><!--red_beg-->大模型<!--red_end--></em>第二篇</a></h3>
-    <div class="s-p"><span class="all-time-y2">量子位</span></div>
-  </li>
-</ul>`
-
 test('decodePages tolerates objects, JSON strings and garbage', () => {
   const pages = decodePages(['{"title":"a","url":"u"}', { title: 'b' }, 'not json'])
   assert.equal(pages.length, 3)
@@ -163,4 +150,29 @@ test('filter-capable engines are tried first; the rest answer as degraded', asyn
   assert.equal(only.engine, 'plain')
   assert.equal(only.degraded, true)
   assert.match(only.tried.join(' '), /忽略时间过滤/)
+  // The answer itself must say the filter was dropped, not just the log.
+  assert.match(only.content, /不支持时间过滤/)
+})
+
+test('a non-degraded answer carries no notice', async () => {
+  const engines = [{
+    id: 'a',
+    label: 'A',
+    filters: { site: true, exclude: true, date: true },
+    run: async () => ({ sources: [{ url: 'https://a.example/1' }] }),
+  }]
+  const result = await runChain(engines, 'q', { filters: { site: '', exclude: [], after: '2026-01-01', before: '' } })
+  assert.equal(result.degraded, false)
+  assert.equal(result.content, undefined)
+})
+
+test('a cancelled search stops the chain instead of trying the next engine', async () => {
+  const controller = new AbortController()
+  const calls = []
+  const engines = [
+    { id: 'a', label: 'A', run: async () => { calls.push('a'); controller.abort(); throw new Error('aborted') } },
+    { id: 'b', label: 'B', run: async () => { calls.push('b'); return { sources: [{ url: 'https://b.example' }] } } },
+  ]
+  await assert.rejects(() => runChain(engines, 'q', { signal: controller.signal }), /aborted/)
+  assert.deepEqual(calls, ['a'])
 })

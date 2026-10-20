@@ -1,94 +1,83 @@
 # 一个搜索 · dsh-onesearch
 
-一个搜索接缝（`ctx.web`）+ 一条**有序引擎链**。每个引擎单独开关、可拖动排序；前一个失败或返回 0 条就自动顺延下一个；默认接管 DSH 的内置 `web_search`。
+DeepSeek Harness 的搜索插件：把内置的网络搜索换成一条**可排序的搜索引擎链**——每个引擎单独开关，拖动决定谁先谁后，前一个失败或没搜到东西就自动改用下一个。
+
+适用于 **DeepSeek Harness 0.2.1-rc.2**。
 
 ## 它解决什么
 
-DSH 的搜索是「一个 provider 说了算」：哪个插件最后抢到 `ctx.web.searchProviderId`，`web_search` 就用谁，失败了就直接报错。一个搜索把这层换成一个**可排序的链**：
+Harness 的内置搜索只认一个搜索服务。那个服务一报错（额度用完、被限流、网络抖动），`web_search` 就整次失败，模型只能空手回答。
 
-```
-web_search → onesearch → ① 元宝搜索 ─失败/0条→ ② 豆包搜索 ─失败/0条→ ③ Bing 网页
-```
+一个搜索在中间加了一条链：按你定的顺序依次去问，一个不行就换下一个；只有全都失败时才报错，并说清每个引擎各自为什么失败。
 
-- 顺序 = 优先级，`engines` 数组第 0 位最先跑
-- 每个引擎有独立开关，关掉的直接跳过
-- 单个引擎失败**不**让整次搜索失败，只在全部失败时汇总报错，并带上每个引擎的原因
-- 需要 key 的引擎没配 key 会被自动跳过（不会占着第一位空转）
+- **顺序就是优先级**，设置页里拖动排序，第 1 位最先被问
+- **每个引擎一个开关**，关掉的直接跳过
+- **单个引擎失败不影响结果**，只在全链失败时汇总报错
+- **没配 key 的引擎自动跳过**，不会占在队首空转
+- **模型侧工具没有变化**，仍然是 `web_search` / `web_fetch`，工具名里不出现任何搜索引擎的名字
+
+## 快速开始
+
+1. 在 DeepSeek Harness 中打开 **插件管理**，点击 **添加插件**。
+2. 在“输入插件的包名、GitHub 仓库地址或本地目录路径”输入框中填写：
+
+   ```text
+   https://github.com/jeweis/dsh-onesearch
+   ```
+
+   > npm 包名 `dsh-onesearch` 尚未发布到 npm，发布后可以直接填包名。
+
+3. 点击 **安装**，然后在 **已安装插件** 中打开 **一个搜索** 右侧的启用开关。
+4. 装完就能用：默认引擎链是 **元宝搜索 → 豆包搜索 → Bing 网页**，其中 Bing 免密钥，不配置任何 API KEY 也能搜索。
+
+## 在哪里使用
+
+安装并启用后，进入 **设置 → 插件**，找到 **一个搜索** 这一行，点击行内的 **配置**，页面分三块：
+
+| 区块 | 作用 |
+| --- | --- |
+| **引擎优先级** | 拖动左侧 `⠿` 把手调整顺序，右侧开关单独启停。改完立即生效，不用重启插件 |
+| **API KEY** | 需要 key 的引擎各一张卡。密码框写入、写入后不再回显，只显示“已配置 / 缺少 API KEY” |
+| **默认搜索** | 是否让 `web_search` 走这条链。关掉即交还给其他搜索服务 |
+
+无需编辑 YAML。KEY 也可以改用环境变量（见 [配置文档](docs/configuration.md)）。
 
 ## 引擎
 
 | id | 名称 | 需要 key | 说明 |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `yuanbao` | 元宝搜索 | ✅ `sk-…` | 腾讯 WSA，中文优先，支持站点/时效/垂域过滤 |
 | `doubao` | 豆包搜索 | ✅ | 火山引擎联网搜索，中文与资讯覆盖好、响应快；支持站点过滤，不读时间区间 |
 | `bing-html` | Bing 网页 | ❌ | 免密钥兜底，防止主引擎挂掉时整个搜索失败 |
 
-新增引擎：在 `lib/engines/` 加一个模块，在 `lib/engines/index.js` 的 `ENGINES` 里登记（`needsKey` + `key: { field, envField, env }` + `run(query, { maxResults, signal, cfg, filters, raw })`），设置页会自动出现这一行和它的 API KEY 输入框。
+带过滤条件时，**支持该过滤的引擎会排到前面先跑**；不支持的引擎不会直接丢掉，而是排到后面作为降级选项——宁可比要求宽一点，也不空手而归。
 
-## 配置界面
+## 用通用操作符表达过滤
 
-**Settings → Plugins → 一个搜索** 行点「配置」进入页面：
-
-- **引擎优先级**：拖动左侧 `⠿` 把手调整顺序，右侧开关单独启停；顺序与开关即时生效（`Config` 字段声明了 `.volatile()`，不需要重启插件）
-- **每个引擎的 API KEY**：需要 key 的引擎各一张卡（元宝、豆包），密码框写入、永不回显，只显示「已配置/缺少」
-- **默认搜索**：是否接管内置 `web_search`
-
-页面通过 Host 的 `/api/dsh-onesearch/*` 读写，落盘由 Settings 服务完成（写进 `cordis.patch.yml`），页面本身不碰文件。
-
-## 工具
-
-本插件**不新增任何工具**。模型侧仍然只有 DSH 内置的 `web_search` / `web_fetch`，不含任何搜索引擎的名字：
-
-| 工具 | 归属 | 变化 |
-|---|---|---|
-| `web_search` | DSH 内置 | 内容改由本插件的引擎链回答 |
-| `web_fetch` | DSH 内置 | 不变 |
-
-
-### 用通用操作符表达过滤
-
-引擎的站点/时间过滤不另开工具，而是走任何搜索框都懂的操作符，由**支持它的引擎**翻译，不支持的引擎忽略：
+站点和时间过滤不另开工具，直接用搜索框都懂的操作符，由支持的引擎翻译：
 
 | 写法 | 含义 | 元宝 | 豆包 |
-|---|---|---|---|
-| `site:cloud.tencent.com 关键词` | 只搜这个域 | `Site` | `Filter.Sites` |
-| `关键词 -site:csdn.net -site:zhihu.com` | 排除域名（最多 5 个） | `Site: exclude:a\|b` | 不支持，忽略 |
-| `关键词 after:2026-01-01` | 该日期之后 | `Freshness` 区间 | 不支持，忽略 |
-| `关键词 before:2026-06-30` | 该日期之前 | `Freshness` 区间 | 不支持，忽略 |
+| --- | --- | --- | --- |
+| `site:cloud.tencent.com 关键词` | 只搜这个域 | ✅ | ✅ |
+| `关键词 -site:csdn.net -site:zhihu.com` | 排除域名（最多 5 个） | ✅ | — |
+| `关键词 after:2026-01-01` | 该日期之后 | ✅ | — |
+| `关键词 before:2026-06-30` | 该日期之前 | ✅ | — |
 
-`after`/`before` 可以只写一个；解析由 `lib/query.js` 完成，Bing 引擎拿到的是**未剥离**的原始查询（它自己也认这些操作符）。
-
-带过滤条件时，**支持该过滤的引擎排到前面**；不支持的引擎不会被直接丢掉，而是排到后面作为降级选项，真到它作答时结果会带 `（忽略时间过滤）` 这样的标注——宁可比要求的宽一点，也不空手而归。
-
-## 配置
-
-```yaml
-- id: onesearch
-  name: dsh-onesearch
-  config:
-    engines:
-      - { id: yuanbao, enabled: true }
-      - { id: doubao, enabled: true }
-      - { id: bing-html, enabled: true }
-    yuanbaoApiKey: 'sk-…'          # 或留空读 yuanbaoApiKeyEnv
-    yuanbaoApiKeyEnv: WSA_API_KEY
-    doubaoApiKey: '…'              # 或留空读 doubaoApiKeyEnv
-    doubaoApiKeyEnv: DOUBAO_API_KEY
-    defaultCount: 10
-    searchTimeoutMs: 20000
-```
+`after` / `before` 可以只写一个。Bing 引擎拿到的是原始查询（它自己也认这些操作符）。
 
 ## 和其他搜索插件的关系
 
-- **dsh-free-search**：它注册自己的 provider 和自己的工具（`advanced_search` / `multi_search` / `platform_search` / `web_fetch` 等）。一个搜索只接管 **`web_search` 这一个入口**；free-search 的其它工具照常可用，但它内部仍走它自己的引擎，不经过本链。接管靠的是 `web` 条目的 `searchProvider` 配置（运行时给 `ctx.web.searchProviderId` 赋值不会生效——服务在构造时就读取了它）。
-- **ds-bot 的 `auto` provider**（原生搜索 + 免密钥兜底）：同一个接缝上的另一个 provider，不冲突，只是二选一；被本插件接管时它不再服务 `web_search`。
-- 想切回来：设置页关掉「默认搜索」（它会把 `web.searchProvider` 写回 `auto`），或手工在 `cordis.patch.yml` 里改 `- id: web` 的 `searchProvider`。
+- 一个搜索只接管 **`web_search` 这一个入口**。其他搜索插件提供的工具（如 `advanced_search`）照常可用，但它们内部仍走自己的引擎。
+- 与 `dsh-free-search`、ds-bot 的自带搜索**不冲突**：同一时刻只有一个搜索服务在为 `web_search` 作答，由 **默认搜索** 开关决定。
+- 想切回去：设置页关掉 **默认搜索**；或把 `cordis.patch.yml` 里 `- id: web` 的 `searchProvider` 改回去。
 
-## 开发
+## 文档
 
-```bash
-npm install                 # linked 安装时宿主不替插件解析下列依赖
-node --test test/*.test.mjs # 纯逻辑单测（解析 + 优先级链），不联网
-```
+- [配置项与排障](docs/configuration.md)
+- [内部机制](docs/architecture.md)
+- [开发与新增引擎](docs/development.md)
+- [发布流程](docs/release.md)
 
-`@deepseek-ai/schemastery` 是运行期真实依赖：`link:` 安装时模块按真实路径解析，缺了会在加载阶段 `ERR_MODULE_NOT_FOUND`，插件行停在 inactive，设置页也不会出现。
+## 许可
+
+MIT
