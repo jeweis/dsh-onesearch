@@ -1,6 +1,6 @@
 {
   "name": "dsh-onesearch",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DeepSeek Harness 搜索插件：把内置网络搜索换成一条可排序的搜索引擎链，每个引擎单独开关、拖动决定优先级，失败自动顺延下一个。",
   "type": "module",
   "license": "MIT",
